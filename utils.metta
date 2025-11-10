@@ -78,7 +78,15 @@
   ) 
 )))
 
-
+;; Fold a tuple from right to left
+; (: foldr (-> (-> $a $b $b) $b $c $d))
+(= (foldr $f $i $xs)
+   (if (== $xs ())
+       $i
+       (let* (($h (car-atom $xs))
+              ($t (cdr-atom $xs))
+              ($ft (foldr $f $i $t)))
+         ($f $h $ft))))
 
 ;; Apply a given function to every element of a tuple
 (: map (-> (-> $a $b) $c $d))
