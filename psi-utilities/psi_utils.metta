@@ -46,9 +46,9 @@
 (: prior-beta (-> Number))
 (= (prior-beta) 0.5)
 
-;; Define max
-(: max (-> $a $a $a))
-(= (max $x $y) (if (> $x $y) $x $y))
+; ;; Define max
+; (: max (-> $a $a $a))
+; (= (max $x $y) (if (> $x $y) $x $y))
 ;; Maximum supported count
 (: max-count (-> Number))
 (= (max-count) 1e9)
@@ -63,8 +63,8 @@
 
 
 ;; Define <=
-(: <= (-> $a $a Bool))
-(= (<= $x $y) (or (< $x $y) (== $x $y)))
+; (: <= (-> $a $a Bool))
+; (= (<= $x $y) (or (< $x $y) (== $x $y)))
 
 ;; Lookahead constant
 (: lookahead (-> Number))
