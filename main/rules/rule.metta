@@ -221,7 +221,6 @@
    (collapse (let* (
           ($head (superpose $andLinks))
           ($handles (match $space (: $handle (IMPLICATION_LINK $head $goal)) $handle))
-          ; (() (println! ("head" $head "|| Handles" $handles)))
         )
      $handles
      )
@@ -293,11 +292,9 @@
 
 ; addRulePred helper function
 (= (addRulePred $space $pred $rule)
-     (let* (
-        ($_ (add-atom $space $pred))
-        )
+     (let $_ (add-atom $space $pred)
        $rule
-       )
+        )
    )
 
 ;Returns all the categories that were added using add_to_category.
