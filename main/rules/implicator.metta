@@ -1,8 +1,6 @@
-;; !(register-module! ../../utilities-module)
-;; !(register-module! ../../../hyperon-openpsi)
-;; !(import! &self utilities-module:utils)
-;; !(import! &self hyperon-openpsi:main:rules:rule)
 !(bind! &satisfiabilityCache (new-space))
+!(import! &self ../../../lib/lib_he)
+
 
 ;; This function fetches queries based on handles
 ;; it returns the handle and the query as one being the type of the other.
@@ -24,7 +22,7 @@
     (if (== $rule ())
         ()
         (let* (
-                ($handle (cadr-atom $rule))
+                ($handle (car-atom (cdr-atom $rule)))
                 ($queryTTV (: $handle ((TTV $time (STV $bel $conf)) (IMPLICATION_LINK (AND_LINK ($context $action)) $goal))))
                 ($queryTV (: $handle ((STV $bel $conf) (IMPLICATION_LINK (AND_LINK ($context $action)) $goal))))
                 
@@ -58,7 +56,7 @@
         ($caches (collapse (get-atoms $satisfiabilityCache)))
         ($_ (println! (caches $caches)))
         ($truthValues (if (> (size-atom $caches) 0)(collapse (checkSatisfier' $rule (superpose $caches))) (False)))
-        (() (println! (truthValues $truthValues)))
+        ($_ (println! (truthValues $truthValues)))
     ) 
         (any $truthValues)
     )
@@ -118,12 +116,12 @@
         ($_ (println! (handleSatisfiability $handle)))
     )
     
-       (if  (== $query ()) ;(== (car-atom $query) ERROR))
+       (if  (== $query ()) 
             (FALSE_TV)
             (let* (
-                ($_ (removeBasedOnPatternList  $query $caches $satisfiabilityCache))
+                ($x (removeBasedOnPatternList  $query $caches $satisfiabilityCache))
                 ($_ (println! (after-remove (collapse (get-atoms $satisfiabilityCache)))))
-                ($_ (satisfy $satisfiabilityCache $query))
+                ($y (satisfy $satisfiabilityCache $query))
             )
                 (if (checkSatisfier $handle $satisfiabilityCache)
                     (TRUE_TV)
@@ -134,16 +132,3 @@
         )
     )
 )
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;         Tests for implicator    ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; !(satisfy &satisfiabilityCache (: x ((TTV 1 (STV 0.5 0.6)) (IMPLICATION_LINK (AND_LINK ((x y) act)) (y)))))
-;; !(get-atoms &satisfiabilityCache)
-;; !(getQueryByHandle x &satisfiabilityCache)
-;; !(checkSatisfiability x &satisfiabilityCache)
-;; !(changeRuleToQuery ())
-;; !(get-atoms &satisfiabilityCache)
-
-;; !(changeRuleToQuery (: x ((TTV 1 (STV 0.5 0.6)) (IMPLICATION_LINK (AND_LINK ((x y) act)) (y)))))
-

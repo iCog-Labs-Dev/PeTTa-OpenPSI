@@ -1,29 +1,33 @@
-;!(bind! &psiRules (new-space))
-;!(bind! &categoryIndex (new-space))
+!(import! &self ../../../utils)
+
+!(bind! &psiRules (new-space))
+!(bind! &categoryIndex (new-space))
 
 (= (FALSE_TV) (False (STV 0.0 1.0))) ;False, with Maximum confidence
 (= (TRUE_TV) (True (STV 1.0 1.0))) ;True, with Maximum confidence
 
 (= (PsiRules) &psiRules)
 
-(: addAndLink (-> Grounded Expression Expression Expression))
+; (: addAndLink (-> Grounded Expression Expression Expression))
 (= (addAndLink $space $context $action)
    (let $res 
         (collapse (match  $space (AND_LINK ($context $action)) (AND_LINK ($context $action))))
         (if (not (== $res ()))
           (car-atom $res)
-          (let () (add-atom  $space (AND_LINK ($context $action))) (AND_LINK ($context $action)))
+          (let $_ (add-atom  $space (AND_LINK ($context $action))) (AND_LINK ($context $action)))
         )
      )
 )
 
-(: addRuleLink (-> Grounded Symbol Expression Expression Expression))
+; (: addRuleLink (-> Grounded Symbol Expression Expression Expression))
 (= (addRuleLink  $space $handle $goal $andLink)
    (let*
      (
       ($rule (collapse (get-type $handle)))
+      ;($_ (println! ("RULE TYPE" $rule)))
       )
-      (if (not (== $rule (%Undefined%))) 
+      ; No %Undefined% in PeTTa, so checking for empty list instead
+      (if (not (== $rule ())) 
             () 
             (
               let* (
@@ -38,41 +42,50 @@
      )
 )
 
-(: existsIn Grounded Atom Bool)
+; (: existsIn Grounded Atom Bool)
+; (= (existsIn $space $atom)
+;    ( let $res (collapse (get-type-space $space $atom)) (not (== (%Undefined%) $res)) )
+; )
+
+;; since get-type-space not found in PeTTa, using match instead
 (= (existsIn $space $atom)
-   ( let $res (collapse (get-type-space $space $atom)) (not (== (%Undefined%) $res)) )
+    (let $res (collapse (match $space (: $atom $type) $type))
+        (not (== () $res))
+    )
 )
 
-(: addRule (-> Grounded Symbol Expression Expression Symbol Expression Expression))
+; (: addRule (-> Grounded Symbol Expression Expression Symbol Expression Expression))
 ;(: addRule (-> Symbol Expression Action Symbol Goal Expression))
 (= (addRule $space $ruleHandle $context $action $goal $tv)
     (let* (
             ($andLink (addAndLink $space $context $action))
-            ($_ (addRuleLink   $space $ruleHandle $goal $andLink))
+            ($tmp (addRuleLink   $space $ruleHandle $goal $andLink))
             ($exists (existsIn &psiRules $ruleHandle))
           )
-          (if $exists 
+          (if $exists
               $ruleHandle
               (let* 
                 (
                   ($res (getRuleType $ruleHandle $space))
                   ($_ (if (== (size-atom $res) 2) ; Important to avoid adding another $tv to $ruleHandle as type.
                           (update-atom $space (: $ruleHandle (TTV 0 (STV 0.0 0.0))) (: $ruleHandle $tv)) 
-                          () ))
-                  ($_ (update-atom $space (isExecuted $ruleHandle (DEFAULT_TV)) (isExecuted $ruleHandle (FALSE_TV))))
+                          () 
+                    ))
+                  ($_ (update-atom $space (isExecuted $ruleHandle (DEFAULT_TV)) (isExecuted $ruleHandle (False (STV 0.0 1.0)))))
+
                 )
-                (let () (if (== (len $context) 1)
+                (let $_ (if (== (size-atom $context) 1)
                     (add-atom &psiRules (: $ruleHandle ($context $action $goal (car-atom $context))))
                     (add-atom &psiRules (: $ruleHandle ($context $action $goal (AND_LINK $context))))
                   )
-                  $ruleHandle
+                    $ruleHandle
                 )
               )
           )
     )
 )
  
-(: getAction (-> Grounded Symbol Expression))
+; (: getAction (-> Grounded Symbol Expression))
 (= (getAction $space $rule) 
    (
     case (getRuleType $rule $space) 
@@ -85,7 +98,7 @@
    )
 )
 
-(: getGoal (-> Grounded Symbol Expression))
+; (: getGoal (-> Grounded Symbol Expression))
 (= (getGoal $space $rule)  
   ( 
    case (getRuleType $rule $space) 
@@ -98,7 +111,7 @@
    )
 )
 
-(: getContext (-> Grounded Symbol Expression))
+; (: getContext (-> Grounded Symbol Expression))
 (= (getContext $space $rule)
    (
     case (getRuleType $rule $space) 
@@ -113,9 +126,10 @@
 )
 
 
-(= (getRuleType $id $space) (collapse (get-type-space $space $id)))
+; (= (getRuleType $id $space) (collapse (get-type-space $space $id)))
+(= (getRuleType $id $space) (collapse (match $space (: $id $type) $type)))
 
-(: getTV (-> Symbol Grounded Expression))
+; (: getTV (-> Symbol Grounded Expression))
 (= (getTV $id $space) 
    (
     case (getRuleType $id $space)
@@ -127,7 +141,7 @@
   )
 )
 
-(: getImplication  (-> Symbol Grounded Expression))
+; (: getImplication  (-> Symbol Grounded Expression))
 (= (getImplication $rule $space)
    (
     case (getRuleType $rule $space) 
@@ -141,22 +155,28 @@
     )
 )
 
+; (: addNewGoal (-> Symbol Number Number Grounded Atom))
+(= (addNewGoal $name $value $dgv $space)
+   (let $_ (add-atom $space (Goal $name $value $dgv))
+        $name))
+
 ;(: x (Goal $value $dgv))
-(: addGoalHelper (-> Symbol Number Number Grounded Atom))
+; (: addGoalHelper (-> Symbol Number Number Grounded Atom))
 (= (addGoalHelper $name $value $dgv $space)
    (if (and (isGvValid $value) (isGvValid $dgv)) 
       (if (goalExists $name $space)
           (Goal With Id $name Already Exists)
-          (let () 
-              (add-atom $space (Goal $name $value $dgv)) 
-              $name
-          )
+        ;   (add-atom $space (Goal $name $value $dgv))
+          (addNewGoal $name $value $dgv $space) 
+        ;       $name
         )
       (Invalid goal/dgv Value) 
     )
 )
 
-(: isGvValid (-> Number Bool))
+
+
+; (: isGvValid (-> Number Bool))
 (= (isGvValid $value)
    (and (>= $value 0.0) (<= $value 1.0))
    )
@@ -164,7 +184,7 @@
 ;This function accepts an optional third argument,
 ;dgv(desiredGoalValue), if () is passed then a default value of 1.0 is used.
 ;Returns the symbol representing the added goal.
-(: addGoal (-> Symbol Number Atom Grounded Expression))
+; (: addGoal (-> Symbol Number Atom Grounded Expression))
 (= (addGoal $name $value $dgv $space)
    (if (== () $dgv) 
       (addGoalHelper $name $value 1.0 $space) 
@@ -172,7 +192,7 @@
     )
    )
 
-(: setGv (-> Symbol Number Grounded (->)))
+; (: setGv (-> Symbol Number Grounded (->)))
 (= (setGv $goal $value $space)
    (if (goalExists $goal $space)
           (match $space (Goal $goal $oldGv $oldDgv) (update-atom $space (Goal $goal $oldGv $oldDgv) (Goal $goal $value $oldDgv)))
@@ -180,7 +200,7 @@
     )
    )
 
-(: setDgv (-> Symbol Number Grounded (->)))
+; (: setDgv (-> Symbol Number Grounded (->)))
 (= (setDgv $goal $value $space)
    (if (goalExists $goal $space)
           (match $space (Goal $goal $oldGv $oldDgv) (update-atom $space (Goal $goal $oldGv $oldDgv) (Goal $goal $value $oldDgv)))
@@ -192,26 +212,21 @@
 
 ;For each AndLink, get all ImplicationLink atoms pointing to it.
 ;Filter these to keep only valid PSI rules using the isRule predicate function.
-;arg1: a tuple of andLinks
-;arg2: an accumulator
+;arg1:a space
+;arg2: a tuple of andLinks
 ;return: a tuple of valid psiRules
 
-(= (filterPsiRules $space $andLinks $acc)
-   (if (== $andLinks ())
-      $acc
-      (let* (
-              (($head $tail) (decons-atom $andLinks))
-              ($handles (collapse (match $space (: $handle (IMPLICATION_LINK $head $goal)) $handle)))
-              ($rulesList (concatTuple $handles $acc))
-              ($res (filterPsiRules $space $tail $rulesList))
-            )
-        (if (== $head ())
-          $acc
-          $res
-          )
+; Simplified version without accumulator
+(= (filterPsiRules $space $andLinks)
+   (collapse (let* (
+          ($head (superpose $andLinks))
+          ($handles (match $space (: $handle (IMPLICATION_LINK $head $goal)) $handle))
         )
+     $handles
+     )
    )
-  )
+)
+
 
 (= (isRule $rule) (existsIn (PsiRules) $rule))
 
@@ -224,9 +239,10 @@
 (= (relatedGoals $space $action)
    (let* (
           ($andLinks (collapse (match $space (AND_LINK ($context $action)) (AND_LINK ($context $action)))))
-          ($rules (filterPsiRules $space $andLinks ()))
+          ($rules (filterPsiRules $space $andLinks))
           ($goals (collapse (getGoal $space (superpose $rules))))
           ($res (collapse (unique (superpose $goals)))) ; remove duplicate goals
+          ; (() (println! (" Rules || " $rules "|| Goals || " $goals "|| Res || " $res)))
         )
         $res
       )
@@ -242,10 +258,10 @@
 ;arg: newCategory The node reprsenting the new category.
 ;return: Node that represents the category.
 
-(: addCategory (-> Symbol Expression))
+; (: addCategory (-> Symbol Expression))
 (= (addCategory $newCategory)
    (if (not (existsIn &categoryIndex $newCategory))
-     (let () 
+     (let $_ 
        (add-atom &categoryIndex (: $newCategory Category))
        $newCategory
        )
@@ -260,33 +276,42 @@
 ;arg2: category An atom that represents the category.
 ;return: The rule that was passed in.
  
-(: addToCategory (-> Symbol Symbol Expression))
+   
+; (: addToCategory (-> Symbol Symbol Expression))
 (= (addToCategory $rule $category)
    (let* (
         ($catgry (addCategory $category)) ; add the category incase it hasn't been added
         ($rulePred (isA $rule $category))
       )
      (if (not (isMember $rulePred (collapse (get-atoms &categoryIndex))))
-          (let () (add-atom &categoryIndex $rulePred) $rule)
+        ;   (let $_ (add-atom &categoryIndex $rulePred) $rule)
+          (addRulePred &categoryIndex $rulePred $rule)
           (addToCategory: Rule $rule Already Exists in $category))
     )
+   )
+
+; addRulePred helper function
+(= (addRulePred $space $pred $rule)
+     (let $_ (add-atom $space $pred)
+       $rule
+        )
    )
 
 ;Returns all the categories that were added using add_to_category.
 ;
 ;return: A tuple of symbols that represent the categories.
 
-(: getCategories (->) Expression)
+; (: getCategories (->) Expression)
 (= (getCategories) (collapse (match &categoryIndex (: $category Category) $category)) )
 
 
 
-(: goal-value (-> Symbol Grounded Number))
+; (: goal-value (-> Symbol Grounded Number))
 (= (goal-value $goal $space)
     (match $space (Goal $goal $value $dgv) $value)
 )
 
-(: desired-goal-value (-> Symbol Grounded Number))
+; (: desired-goal-value (-> Symbol Grounded Number))
 (= (desired-goal-value $goal $space)
    (match $space (Goal $goal $value $dgv) $dgv)
    )
@@ -319,7 +344,7 @@
 
 
 ; urge related functions 
-(: urge-value (-> Symbol Grounded Number))
+; (: urge-value (-> Symbol Grounded Number))
 (=(urge-value $goal $space)
   (- (desired-goal-value $goal $space) (goal-value $goal $space))
  )

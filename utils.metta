@@ -1,6 +1,7 @@
 ;; Helper functions that are going to be useful for writing any metta code
 (: ~= (-> Atom Atom Bool))
 (= (~= $a $b) (not (== $a $b)))
+(= (any $bools) (isMember True $bools))
 
 ;; INFO: Uncomment for the use of MeTTaLog.
 ;; (: >= (-> Number Number Bool))
@@ -78,15 +79,7 @@
   ) 
 )))
 
-;; Fold a tuple from right to left
-; (: foldr (-> (-> $a $b $b) $b $c $d))
-(= (foldr $f $i $xs)
-   (if (== $xs ())
-       $i
-       (let* (($h (car-atom $xs))
-              ($t (cdr-atom $xs))
-              ($ft (foldr $f $i $t)))
-         ($f $h $ft))))
+
 
 ;; Apply a given function to every element of a tuple
 (: map (-> (-> $a $b) $c $d))
@@ -125,3 +118,53 @@
         )
     )
 )
+
+(= (splitAt $n $list)
+   (case ($n $list)
+     (
+       ((0 $list) (() $list))
+       (($_ ()) (() ()))
+       (($n $list)
+          (let*
+             (
+               (($x $xs) (decons-atom $list))
+               (($left $right) (splitAt (- $n 1) $xs))
+             )
+             ((cons-atom $x $left) $right)
+          )
+       )
+     )
+   )
+)
+
+;; Merge sort function.
+(= (sort $list $key)
+   (if (<= (len $list) 1)
+       $list
+       (let* (
+               ($mid (floor-math (/ (size-atom $list) 2)))
+               (($left $right) (splitAt $mid $list))
+               ($cmp (if (== dec $key) > <=))
+             )
+             (merge-sort (sort $left $key) (sort $right $key) $cmp)
+       )
+   )
+)
+
+;; Function that merges two sorted lists while keeping them sorted.
+(= (merge-sort () $right $cmp) $right)
+(= (merge-sort $left () $cmp) $left)
+
+(= (merge-sort $left $right $cmp)
+     (let* (
+            (($lh $lt) (decons-atom $left))
+            (($rh $rt) (decons-atom $right))
+            ($res1 (merge-sort $lt $right $cmp))
+            ($res2 (merge-sort $left $rt $cmp))
+            )
+       (if ($cmp $lh $rh)
+         (cons-atom $lh $res1)
+         (cons-atom $rh $res2)
+         )
+       )
+     )
