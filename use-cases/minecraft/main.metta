@@ -33,10 +33,10 @@
       ($_ (perceptionToDemands &perceptionSpace &demandSpace))
       
       ($demands (queryAll &demandSpace demand))
-      ($_ (println! (Demands: $demands)))
+      ; ($_ (println! (Demands: $demands)))
       
-      ($currDemand (fetchLeastSatisfiedDemand &demandSpace))
-      ($_ (println! (Selected-Demand: $currDemand)))
+      ($currDemand (getLeastSatisfiedDemand &demandSpace))
+      ; ($_ (println! (Selected-Demand: $currDemand)))
       
       ((demand $demandName $minVal $maxVal $demandValue) $currDemand)
       
@@ -45,11 +45,12 @@
       ($_ (println! (Selected-Goal: $goal)))
       
       
-      ($actions (planner &ruleSpace init $goal))
+      (($actions $id) (actionPlanner &ruleSpace $goal))
       ($_ (println! (Planned Actions: $actions)))
       
       ($result (performAction $actions))
-      ($_ (println! (Action Result: $result)))
+      ; ($_ (println! (Action Result: $result)))
+      ($_ (updateRule $id $result &ruleSpace))
       
       ;; To be implemented later - Update modulators based on demands and action results
       ;; ($_ (modulatorUpdaterAgent &modulatorSpace $))

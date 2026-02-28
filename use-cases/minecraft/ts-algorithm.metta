@@ -125,9 +125,7 @@
             (($head $tail) (decons-atom $ids))
             (($s $c) (getSTV $head $space))
             (($alpha $beta) (stvToBeta ($s $c)))
-            ; ($_ (println! ("Rule ID:" $head  " STV: (" $s ", " $c ") Beta Params: (" $alpha ", " $beta ")")))
             (($sample) (thompson-sampler $alpha $beta 1))
-            ($_ (println! ("Rule id:" $head  "Sample:" $sample)))
             (($chosenId $chosenSample) (sampler $tail $space))
         ) (
             if (> $sample $chosenSample)
