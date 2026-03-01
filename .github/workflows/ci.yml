@@ -17,9 +17,10 @@ jobs:
     steps:
       - name: Checkout your repository
         uses: actions/checkout@v4
-
-      - name: Setup SWI-Prolog
-        uses: logtalk-actions/setup-swi-prolog@v2
+      - name: Install SWI-Prolog
+        run: |
+            sudo apt update
+            sudo apt install -y swi-prolog
 
       - name: Clone PeTTa
         run: |
