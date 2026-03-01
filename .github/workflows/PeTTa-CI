@@ -1,31 +1,34 @@
 name: PeTTa CI
 
 on:
-  push:
-    branches:
-      - main
-      - dev
-      - feat/*
-      - fix/*
-      - ref/*
   pull_request:
-    branches:
-      - main
-      - dev
-      - feat/*
-      - fix/*
-      - ref/*
+    branches: [ main ]
+  push:
+    branches: [ main ]
 
 jobs:
-  setup-and-test:
+  test:
     runs-on: ubuntu-latest
-    container:
-      image: bluesky21/petta:v1.0.0
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout your repository
         uses: actions/checkout@v4
 
-      - name: Run PeTTa test
+      - name: Setup SWI-Prolog
+        uses: logtalk-actions/setup-swi-prolog@v2
+
+      - name: Clone PeTTa
         run: |
-          python3 scripts/run-tests.py
+          git clone https://github.com/patham9/PeTTa.git
+          cd PeTTa
+          chmod +x run.sh
+          echo "$PWD" >> $GITHUB_PATH
+
+      - name: Verify run.sh
+        run: |
+          which run.sh
+          swipl --version
+
+      - name: Run Test Suite
+        run: |
+          python3 your_test_script.py
