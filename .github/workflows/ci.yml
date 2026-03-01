@@ -17,10 +17,14 @@ jobs:
     steps:
       - name: Checkout your repository
         uses: actions/checkout@v4
-      - name: Install SWI-Prolog
+      - name: Install SWI-Prolog >= 9.3
         run: |
-            sudo apt update
-            sudo apt install -y swi-prolog
+          sudo apt update
+          sudo apt install -y software-properties-common
+          sudo add-apt-repository -y ppa:swi-prolog/devel
+          sudo apt update
+          sudo apt install -y swi-prolog
+          swipl --version
 
       - name: Clone PeTTa
         run: |
