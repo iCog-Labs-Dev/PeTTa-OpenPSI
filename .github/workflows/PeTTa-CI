@@ -2,7 +2,9 @@ name: PeTTa CI
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: 
+      - main
+      - feat/workflow-Integration
   push:
     branches: [ main ]
 
@@ -31,4 +33,4 @@ jobs:
 
       - name: Run Test Suite
         run: |
-          python3 your_test_script.py
+          python3 scripts/run-tests.py
