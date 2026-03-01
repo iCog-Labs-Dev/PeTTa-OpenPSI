@@ -1,11 +1,11 @@
 name: PeTTa CI
 
 on:
-  on:
   push:
     branches:
       - main
       - feat/workflow-Integration
+  pull_request:
     branches:
       - main
       - feat/workflow-Integration
