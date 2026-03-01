@@ -1,0 +1,31 @@
+name: PeTTa CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - feat/*
+      - fix/*
+      - ref/*
+  pull_request:
+    branches:
+      - main
+      - dev
+      - feat/*
+      - fix/*
+      - ref/*
+
+jobs:
+  setup-and-test:
+    runs-on: ubuntu-latest
+    container:
+      image: bluesky21/petta:v1.0.0
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run PeTTa test
+        run: |
+          python3 scripts/run-tests.py
