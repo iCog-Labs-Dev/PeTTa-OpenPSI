@@ -1,12 +1,14 @@
 name: PeTTa CI
 
 on:
-  pull_request:
-    branches: 
+  on:
+  push:
+    branches:
       - main
       - feat/workflow-Integration
-  push:
-    branches: [ main ]
+    branches:
+      - main
+      - feat/workflow-Integration
 
 jobs:
   test:
