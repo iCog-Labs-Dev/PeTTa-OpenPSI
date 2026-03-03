@@ -51,12 +51,13 @@ def getObservation() -> list:
         return observationToMetta(obs)
     return []
 
-def executeAction(actionName: str, *args) -> str:
+def executeAction(actionName: str, *args):
     print(f"Executing Action: {actionName} with args {args}")
     
     try:
         if not currentEnv:
-            return "Not Connected"
+            print("No Minecraft environment connected.")
+            return None
         
         key = re.sub(r'(?<!^)(?=[A-Z])', '_', actionName).upper()
         actionMap = {
@@ -74,7 +75,8 @@ def executeAction(actionName: str, *args) -> str:
             # print("len of args:", len(args))
             if len(args) >= 3 and hasattr(currentEnv, 'moveTo'):
                 return currentEnv.moveTo(float(args[0]), float(args[1]), float(args[2]))
-            return "MoveTo failed: insufficient args or mode"
+            print("Invalid arguments for move_to action. Expected 3 coordinates.")
+            return None
             
         
         if hasattr(ActionType, key):
@@ -87,18 +89,21 @@ def executeAction(actionName: str, *args) -> str:
                 if currentEnv and hasattr(currentEnv, 'rob') and currentEnv.rob:
                     currentEnv.rob.sendCommand(f"chat {msg}")
                     return f"Chatted: {msg}"
-                return "Chat Failed: Not connected"
+                print("Current environment does not support chat command.")
+                return None
             
         if actionName in actionMap:
             target_action = actionMap[actionName]
             return currentEnv.executeAction(target_action)
         
-        return f"Unknown Action {actionName}"
+        print(f"Action '{actionName}' not recognized or not implemented.")
+        return None
 
 
             
     except Exception as e:
-        return f"Error executing {actionName}: {e}"
+        print(f"Error executing {actionName}: {e}")
+        return None
 
 def observationToMetta(obs: Observation):
     atoms = []

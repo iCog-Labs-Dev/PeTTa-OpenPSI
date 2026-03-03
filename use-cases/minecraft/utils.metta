@@ -160,7 +160,7 @@
 
 (= (surfaceForAirLoop $stepsLeft)
    (if (== $stepsLeft 0)
-      (Surface Attempt Capped)
+      ()
       (let* (
          ; ($_ (updatePerception &perceptionSpace))
          ($currAirlvl (sread (py-call (utils.getAirLevel))))
@@ -195,14 +195,17 @@
 
 (= (performAction $actions) (
    if (== $actions ())
-      (println! "No actions to perform.")
+      1
       (let* (
          (($head $tail) (decons-atom $actions))
          ($result (performSingleAction $head))
          ($_ (println! ("Performed action: " $head " Result: " $result)))
          ($_ (updatePerception &perceptionSpace))
       )
-      (performAction $tail)
+      
+      (if (== $result ())
+         0
+         (performAction $tail))
       )
 ))
 
@@ -258,7 +261,7 @@
         ($pos (eval (getNearestEntityPosByType &perceptionSpace item)))
         )
          (if (== $pos ())
-            (No Item To Collect)
+            ()
             (let ($x $y $z) $pos
             (py-call (utils.executeAction move_to $x $y $z))))
       ))
@@ -297,7 +300,9 @@
    ;  (placeBlocks (py-call (utils.executeAction place)))
 
 
-    ($else (println! (Unknown Action $else)))
+    ($else (let* (
+        ($_ (println! (Unknown Action $else)))
+    ) ()))
   ))
 )
 

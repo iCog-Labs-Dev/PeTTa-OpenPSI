@@ -14,7 +14,6 @@
                     (hasEdibleFoodInInventory (STV 1.0 0.9))
                 )))
                 (Action (SEQ_AND (
-                    (selectFood)
                     (eatFood)
                 )))
             )
@@ -154,7 +153,6 @@
                     (hasEdibleFoodInInventory (STV 1.0 0.9))
                 )))
                 (Action (SEQ_AND (
-                    (selectFood)
                     (eatFood)
                 )))
             )

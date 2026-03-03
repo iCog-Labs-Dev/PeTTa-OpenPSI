@@ -163,17 +163,19 @@
       (golden_apple True)
       (melon_slice True)
       (sweet_berries True)
-      (cookie True)
+      (glow_berries True)
       ($_ False)
    )))
 
 
 (= (hasEdibleFood $space)
-   (let $foodItems (collapse 
-      (match $space (hasItem $item $count)
+   (let* (
+      ($foodItems (collapse (match $space (hasItem $item $count)
          (if (isEdible $item) 
-            ($item $count) 
-            Empty)))
+            ($item $count)
+            (empty) ))))
+         ; ($_ (println! ("Edible food items in inventory: " $foodItems)))
+      )
       (if (== $foodItems ()) 
          False 
          True)))
@@ -184,7 +186,7 @@
       (match $space (hasItem $item $count)
          (if (isEdible $item) 
             (FoodItem $item $count) 
-            Empty))))
+            (empty)))))
 
 
 (= (isFoodAnimal $type)

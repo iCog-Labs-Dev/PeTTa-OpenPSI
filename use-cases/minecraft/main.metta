@@ -35,7 +35,7 @@
       ($demands (queryAll &demandSpace demand))
       ; ($_ (println! (Demands: $demands)))
       
-      ($currDemand (getLeastSatisfiedDemandEpsilonGreedy &demandSpace))
+      ($currDemand (getLeastSatisfiedDemandEpsilonGreedy &demandSpace 0.25))
       ; ($_ (println! (Selected-Demand: $currDemand)))
       
       ((demand $demandName $minVal $maxVal $demandValue) $currDemand)

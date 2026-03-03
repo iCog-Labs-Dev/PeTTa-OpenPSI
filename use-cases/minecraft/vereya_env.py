@@ -4,7 +4,8 @@ from typing import List, Dict, Any, Optional
 
 from type import ActionType, Observation
 from navigation import Navigation
-
+from constants import EDIBLE_ITEMS
+import random
 
 try:
     import tagilmo.utils.mission_builder as mb
@@ -13,7 +14,6 @@ try:
 except ImportError:
     VEREYA_AVAILABLE = False
 
-    
 
 class VereyaEnvironment:
     def __init__(self):
@@ -30,9 +30,9 @@ class VereyaEnvironment:
         
         self.agentHandlers = mb.AgentHandlers(observations=self.obs)
         
-        self.agentSection = mb.AgentSection(name='PythonPlayer', agenthandlers=self.agentHandlers)
+        self.agentSection = mb.AgentSection(name='OpenPsiAgent', agenthandlers=self.agentHandlers)
         self.mission = mb.MissionXML(agentSections=[self.agentSection])
-        self.mission.serverSection.initial_conditions.allowedmobs = "Pig Sheep Cow Zombie Skeleton"
+        self.mission.serverSection.initial_conditions.allowedmobs = "Pig Sheep Cow Chicken Ozelot Rabbit Villager Zombie Skeleton"
         
         self.mission.setWorld(mb.defaultworld(seed='12345'))
 
@@ -55,6 +55,71 @@ class VereyaEnvironment:
     def disconnect(self):
         self.connected = False
         print("Vereya environment disconnected.")
+
+    def getCurrentItemIndex(self):
+        if not self.mc:
+            return None
+        try:
+            obs = self.mc.observe.get(self.mc.agentId, {}) or {}
+            idx = obs.get("currentItemIndex", None)
+            if idx is None:
+                return None
+            return int(idx)
+        except Exception:
+            return None
+
+    def findEdibleInventoryItem(self, inventory):
+        candidates = []
+        for item in inventory:
+            itype = str(item.get("type", "")).split(":")[-1].lower().strip()
+            qty = int(item.get("quantity", 0) or 0)
+            if itype in EDIBLE_ITEMS and qty > 0:
+                candidates.append(item)
+
+        if not candidates:
+            return None
+        
+        for item in candidates:
+            if int(item.get("index", 0)) == 0:
+                return item
+            
+        return random.choice(candidates)
+
+    def eatFromInventory(self):
+        if not self.connected or not self.rob or not self.mc:
+            return
+
+        self.rob.observeProcCached()
+        inv = self.rob.waitNotNoneObserve("getInventory", updateReq=True, observeReq=True) or []
+        if not inv:
+            return
+
+        target = self.findEdibleInventoryItem(inv)
+        if target is None:
+            return
+        
+        target_idx = int(target.get("index", 0))
+        current_idx = self.getCurrentItemIndex()
+        dst_idx = current_idx if (current_idx is not None and current_idx >= 0) else 0
+        
+        if target_idx != dst_idx:
+            self.rob.sendCommand(f"swapInventoryItems {dst_idx} {target_idx}")
+            time.sleep(1)
+
+        food_before = self.mc.getFullStat("Food")
+        
+        self.rob.sendCommand("use 1")
+        time.sleep(10.0)
+        self.rob.sendCommand("use 0")
+        time.sleep(0.4)
+
+        food_after = self.mc.getFullStat("Food")
+        print(f"Food before: {food_before}, Food after: {food_after}")
+        
+        if food_before is not None and food_after is not None and float(food_after) > float(food_before):
+             return f"Ate ({target.get('type', 'food')})"
+        
+        return
 
     def getObservation(self) -> Observation:
         if not self.connected or not self.rob:
@@ -155,9 +220,10 @@ class VereyaEnvironment:
             lineOfSightHitType=line_of_sight_hit_type
         )
 
-    def executeAction(self, actionType: ActionType) -> str:
+    def executeAction(self, actionType: ActionType):
         if not self.connected:
-            return "Not Connected"
+            print("Not connected to Vereya environment.")
+            return
 
         if actionType == ActionType.MOVE_FORWARD:
             self.rob.sendCommand('move 1')
@@ -178,10 +244,7 @@ class VereyaEnvironment:
             return "Turned Right"
             
         elif actionType == ActionType.EAT:
-            self.rob.sendCommand('use 1')
-            time.sleep(1)
-            self.rob.sendCommand('use 0')
-            return "Ate"
+            return self.eatFromInventory()
             
         elif actionType == ActionType.ATTACK:
             self.rob.sendCommand('attack 1')
@@ -226,12 +289,14 @@ class VereyaEnvironment:
         elif actionType == ActionType.DROP:
             self.rob.sendCommand('discardCurrentItem')
             return "Dropped Item"
-            
-        return "Action Sent"
+        
+        print(f"Unknown action type: {actionType}")
+        return
 
     def moveTo(self, target_x, target_y, target_z):
         if not self.connected or not self.rob:
-            return "Not Connected"
+            print("Not connected to Vereya environment.")
+            return
 
         self.rob.observeProcCached()
         initialPos = self.rob.getCachedObserve('getAgentPos')
@@ -242,7 +307,8 @@ class VereyaEnvironment:
         rawGrid = self.rob.getCachedObserve('getNearGrid')
         
         if not initialPos or not rawGrid:
-            return "Observations unavailable"
+            print("Failed to get initial position or grid data")
+            return
 
         gridMap = Navigation.parseGrid(rawGrid, self.grid_bounds)
         goal_rel = (
@@ -259,7 +325,8 @@ class VereyaEnvironment:
 
         path = Navigation.aStar((0, 0, 0), goal_rel, gridMap)
         if not path:
-            return f"No path found to {goal_rel}"
+            print("No path found to target!")
+            return
 
         print(f"Executing path: {path}")
         

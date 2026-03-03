@@ -201,7 +201,7 @@
          (leastDemandByVal $tail $bestDemand)))))
 
 ;; ε-greedy demand selector
-(= (getLeastSatisfiedDemandEpsilonGreedy $space)
+(= (getLeastSatisfiedDemandEpsilonGreedy $space $epsilon)
    (let* (
       ($activeDemands (collapse (match $space (demand $name $min $max $val) (demand $name $min $max $val))))
    )
@@ -209,7 +209,6 @@
       ()
       (let* (
          ($leastDemand (leastDemandByVal (cdr-atom $activeDemands) (car-atom $activeDemands)))
-         ($epsilon 0.25)
          ($roll (random-float &rng 0 1))
       )
       (if (< $roll $epsilon)
