@@ -47,10 +47,20 @@
       
       (($actions $id) (actionPlanner &ruleSpace $goal))
       ($_ (println! (Planned Actions: $actions)))
-      
-      ($result (performAction $actions))
+
+      ($result (
+         if (== $actions ())
+            ()
+            (performAction $actions)
+      ))
       ; ($_ (println! (Action Result: $result)))
-      ($_ (updateRule $id $result &ruleSpace))
+      ($x (
+         if (== $result ())
+            ()
+            (updateRule $id $result &ruleSpace)
+         )
+      )
+
       
       ;; To be implemented later - Update modulators based on demands and action results
       ;; ($_ (modulatorUpdaterAgent &modulatorSpace $))

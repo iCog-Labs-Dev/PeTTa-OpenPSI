@@ -55,55 +55,70 @@ def executeAction(actionName: str, *args):
     print(f"Executing Action: {actionName} with args {args}")
     
     try:
+        def normalizeActionResult(result):
+            return [] if result is None else result
+
         if not currentEnv:
             print("No Minecraft environment connected.")
-            return None
+            return []
         
-        key = re.sub(r'(?<!^)(?=[A-Z])', '_', actionName).upper()
+        normalized = re.sub(r'(?<!^)(?=[A-Z])', '_', actionName).lower()
+        key = normalized.upper()
         actionMap = {
-            "use": ActionType.USE,
-            "crouch": ActionType.CROUCH,
-            "drop": ActionType.DROP,
+            # motion + orientation
+            "move_forward": ActionType.MOVE_FORWARD,
+            "turn_left": ActionType.TURN_LEFT,
+            "turn_right": ActionType.TURN_RIGHT,
             "jump": ActionType.JUMP,
+            "move_to": ActionType.MOVE_TO,
+
+            # interaction
+            "attack": ActionType.ATTACK,
+            "eat": ActionType.EAT,
+            "use": ActionType.USE,
             "place": ActionType.PLACE,
             "dig": ActionType.DIG,
-            "move_to": ActionType.MOVE_TO
-        }
-        
-        # print("Mapped action key:", key)
-        if actionName in actionMap and actionMap[actionName] == ActionType.MOVE_TO:
-            # print("len of args:", len(args))
-            if len(args) >= 3 and hasattr(currentEnv, 'moveTo'):
-                return currentEnv.moveTo(float(args[0]), float(args[1]), float(args[2]))
-            print("Invalid arguments for move_to action. Expected 3 coordinates.")
-            return None
+            "crouch": ActionType.CROUCH,
+            "drop": ActionType.DROP,
             
-        
+            # shelter
+            "build_shelter": ActionType.BUILD_SHELTER,
+            "seek_shelter": ActionType.SEEK_SHELTER,
+            "enter_shelter": ActionType.ENTER_SHELTER,
+        }
+
+        if normalized in actionMap and actionMap[normalized] == ActionType.MOVE_TO:
+            if len(args) >= 3 and hasattr(currentEnv, 'moveTo'):
+                return normalizeActionResult(
+                    currentEnv.moveTo(float(args[0]), float(args[1]), float(args[2]))
+                )
+            print("Invalid arguments for move_to action. Expected 3 coordinates.")
+            return []
+
+        if normalized == "chat":
+            msg = args[0] if args else "Hello"
+            if currentEnv and hasattr(currentEnv, 'rob') and currentEnv.rob:
+                currentEnv.rob.sendCommand(f"chat {msg}")
+                return f"Chatted: {msg}"
+            print("Current environment does not support chat command.")
+            return []
+
+        if normalized in actionMap:
+            target_action = actionMap[normalized]
+            return normalizeActionResult(currentEnv.executeAction(target_action))
+
         if hasattr(ActionType, key):
             act = getattr(ActionType, key)
-            # print("Debugging line", act)
-            return currentEnv.executeAction(act)
-        else:
-            if actionName == "chat":
-                msg = args[0] if args else "Hello"
-                if currentEnv and hasattr(currentEnv, 'rob') and currentEnv.rob:
-                    currentEnv.rob.sendCommand(f"chat {msg}")
-                    return f"Chatted: {msg}"
-                print("Current environment does not support chat command.")
-                return None
-            
-        if actionName in actionMap:
-            target_action = actionMap[actionName]
-            return currentEnv.executeAction(target_action)
+            return normalizeActionResult(currentEnv.executeAction(act))
         
         print(f"Action '{actionName}' not recognized or not implemented.")
-        return None
+        return []
 
 
             
     except Exception as e:
         print(f"Error executing {actionName}: {e}")
-        return None
+        return []
 
 def observationToMetta(obs: Observation):
     atoms = []
@@ -170,6 +185,11 @@ def isDay() -> str:
 def getAirLevel() -> str:
     obs = _getRawObservation()
     return str(obs.air if obs is not None and obs.air is not None else 300.0)
+
+def hasShelterKnown() -> str:
+    if not currentEnv:
+        return "False"
+    return "True" if bool(getattr(currentEnv, "shelterState", None)) else "False"
 
 def sortEntities(*args) -> list:
     if not args:

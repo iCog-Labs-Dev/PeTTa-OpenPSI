@@ -1,10 +1,10 @@
 ;; Minecraft Agent Perception Module
 
-!(add-atom &demandSpace (demand hunger 0.0 1.0 0.5))
-!(add-atom &demandSpace (demand safety 0.0 1.0 0.5))
-!(add-atom &demandSpace (demand curiosity 0.0 1.0 0.5))
-!(add-atom &demandSpace (demand energy 0.0 1.0 0.5))
-!(add-atom &demandSpace (demand breath 0.0 1.0 0.5))
+!(add-atom &demandSpace (demand hunger 0.0 1.0 1.0))
+!(add-atom &demandSpace (demand safety 0.0 1.0 0.7))
+!(add-atom &demandSpace (demand curiosity 0.0 1.0 0.75))
+!(add-atom &demandSpace (demand energy 0.0 1.0 1.0))
+!(add-atom &demandSpace (demand breath 0.0 1.0 1.0))
 
 (= (totalPoints) 20)
 
@@ -101,12 +101,28 @@
 (= (safetyLevel $space)
    (let* (
       ($isDay (isDaytime $space))
+      ($isNight (not $isDay))
       ($hostileNear (hostileNearBy $space))
-      ($_ (println! ("Calculating safety level. IsDay: " $isDay " HostileNearby: " $hostileNear)))
-      ($dayBonus (if $isDay 0.5 0.0)) ;; safer during day
-      ($hostilePenalty (if $hostileNear 0.5 0.0))
+      ($hasShelter (eval (hasShelterKnownNow)))
+      ($_ (println! ("Calculating safety level. IsDay: " $isDay " HostileNearby: " $hostileNear " HasShelter: " $hasShelter)))
+
+      ($baseSafety (if $isDay 0.9 0.55))
+      ($shelterBonus (if (and $isNight $hasShelter) 0.2 0.0))
+      ($noShelterPenalty
+         (if $hasShelter
+            0.0
+            (if $isDay 0.25 0.35)))
+            
+      ($hostilePenalty
+         (if $hostileNear
+            (if $hasShelter 0.5 0.8)
+            0.0))
+
+      ($safety  (- (- (+ $baseSafety $shelterBonus) $hostilePenalty) $noShelterPenalty))
    )
-   (- (+ 0.5 $dayBonus) $hostilePenalty)))
+   (if (< $safety  0.0)
+      0.0
+      (if (> $safety  1.0) 1.0 $safety ))))
 
 (= (airMaxTicks) 300.0)
 

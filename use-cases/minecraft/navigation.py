@@ -9,13 +9,29 @@ class Navigation:
         "redstone_wire", "tripwire", "tripwire_hook", "rail"
     }
     dangerBlocks = {"lava", "fire", "magma_block", "cactus", "sweet_berry_bush"}
+
+    @staticmethod
+    def normalizeBlockName(blockType):
+        if blockType is None:
+            return ""
+        name = str(blockType).lower().replace("minecraft:", "")
+        return name.split("[", 1)[0]
+
     @staticmethod
     def is_passable(blockType):
-        return blockType in Navigation.walkableBlocks or "flower" in blockType or "fern" in blockType
+        name = Navigation.normalizeBlockName(blockType)
+        if name in Navigation.walkableBlocks or "flower" in name or "fern" in name:
+            return True
+        
+        if "pressure_plate" in name:
+            return True
+        if name.endswith("_door") or name == "door":
+            return True
+        return False
 
     @staticmethod
     def is_safe(blockType):
-        return blockType not in Navigation.dangerBlocks
+        return Navigation.normalizeBlockName(blockType) not in Navigation.dangerBlocks
     
     @staticmethod
     def getNeighbors(pos, gridMap):

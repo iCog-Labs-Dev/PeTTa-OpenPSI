@@ -1,11 +1,13 @@
 import time
 import math
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 
 from type import ActionType, Observation
 from navigation import Navigation
-from constants import EDIBLE_ITEMS
-import random
+import actions as actionOps
+import inventory as inventoryOps
+import observation as observationOps
+import shelter as shelterOps
 
 try:
     import tagilmo.utils.mission_builder as mb
@@ -24,7 +26,7 @@ class VereyaEnvironment:
         self.mc: Optional[MCConnector] = None
         self.rob: Optional[RobustObserver] = None
         
-        self.grid_bounds = [[-10, 10], [-2, 3], [-10, 10]]
+        self.grid_bounds = [[-20, 20], [-2, 2], [-20, 20]]
         self.obs = mb.Observations(bAll=True)
         self.obs.gridNear = self.grid_bounds
         
@@ -34,7 +36,27 @@ class VereyaEnvironment:
         self.mission = mb.MissionXML(agentSections=[self.agentSection])
         self.mission.serverSection.initial_conditions.allowedmobs = "Pig Sheep Cow Chicken Ozelot Rabbit Villager Zombie Skeleton"
         
-        self.mission.setWorld(mb.defaultworld(seed='12345'))
+        self.mission.setWorld(mb.defaultworld(seed='12347', forceReset=False))
+        self.actionHandlers = {
+            ActionType.MOVE_FORWARD: self.doMoveForward,
+            ActionType.TURN_LEFT: self.doTurnLeft,
+            ActionType.TURN_RIGHT: self.doTurnRight,
+            ActionType.EAT: self.eatFromInventory,
+            ActionType.ATTACK: self.doAttack,
+            ActionType.PLACE: self.doPlace,
+            ActionType.USE: self.doUse,
+            ActionType.DIG: self.doDig,
+            ActionType.CHAT: self.doChat,
+            ActionType.CROUCH: self.doCrouch,
+            ActionType.JUMP: self.doJump,
+            ActionType.DROP: self.doDrop,
+            ActionType.BUILD_SHELTER: self.doBuildShelter,
+            ActionType.SEEK_SHELTER: self.doSeekShelter,
+            ActionType.ENTER_SHELTER: self.doEnterShelter,
+        }
+
+    def sendHoldCommand(self, onCommand: str, holdSeconds: float, offCommand: Optional[str] = None, settleSeconds: float = 0.0):
+        actionOps.sendHoldCommand(self, onCommand, holdSeconds, offCommand, settleSeconds)
 
     def connect(self):
         print("Connecting to REAL Minecraft via Vereya ...")
@@ -47,6 +69,22 @@ class VereyaEnvironment:
             print("Mission accepted. Waiting for spawn...")
             time.sleep(2)
             self.connected = True
+
+            # The following commands are for testing purposes only
+            # to ensure the agent has food and can eat.
+            # Remove manual inteventions for a more naturalistic environment.
+            self.mc.sendCommand("chat /give @p apple 2")
+            time.sleep(1)
+            
+            self.mc.sendCommand("chat /give @p bread 2")
+            time.sleep(1)
+            
+            self.mc.sendCommand("chat /give @p glow_berries 2")
+            time.sleep(1)
+            
+            self.mc.sendCommand("chat /effect give @p minecraft:hunger 10 50 true")
+            time.sleep(1)
+
             return True
         except Exception as e:
             print(f"Failed to connect to Vereya: {e}")
@@ -57,246 +95,75 @@ class VereyaEnvironment:
         print("Vereya environment disconnected.")
 
     def getCurrentItemIndex(self):
-        if not self.mc:
-            return None
-        try:
-            obs = self.mc.observe.get(self.mc.agentId, {}) or {}
-            idx = obs.get("currentItemIndex", None)
-            if idx is None:
-                return None
-            return int(idx)
-        except Exception:
-            return None
+        return inventoryOps.getCurrentItemIndex(self)
 
     def findEdibleInventoryItem(self, inventory):
-        candidates = []
-        for item in inventory:
-            itype = str(item.get("type", "")).split(":")[-1].lower().strip()
-            qty = int(item.get("quantity", 0) or 0)
-            if itype in EDIBLE_ITEMS and qty > 0:
-                candidates.append(item)
-
-        if not candidates:
-            return None
-        
-        for item in candidates:
-            if int(item.get("index", 0)) == 0:
-                return item
-            
-        return random.choice(candidates)
+        return inventoryOps.findEdibleInventoryItem(inventory)
 
     def eatFromInventory(self):
-        if not self.connected or not self.rob or not self.mc:
-            return
-
-        self.rob.observeProcCached()
-        inv = self.rob.waitNotNoneObserve("getInventory", updateReq=True, observeReq=True) or []
-        if not inv:
-            return
-
-        target = self.findEdibleInventoryItem(inv)
-        if target is None:
-            return
-        
-        target_idx = int(target.get("index", 0))
-        current_idx = self.getCurrentItemIndex()
-        dst_idx = current_idx if (current_idx is not None and current_idx >= 0) else 0
-        
-        if target_idx != dst_idx:
-            self.rob.sendCommand(f"swapInventoryItems {dst_idx} {target_idx}")
-            time.sleep(1)
-
-        food_before = self.mc.getFullStat("Food")
-        
-        self.rob.sendCommand("use 1")
-        time.sleep(10.0)
-        self.rob.sendCommand("use 0")
-        time.sleep(0.4)
-
-        food_after = self.mc.getFullStat("Food")
-        print(f"Food before: {food_before}, Food after: {food_after}")
-        
-        if food_before is not None and food_after is not None and float(food_after) > float(food_before):
-             return f"Ate ({target.get('type', 'food')})"
-        
-        return
+        return inventoryOps.eatFromInventory(self)
 
     def getObservation(self) -> Observation:
-        if not self.connected or not self.rob:
-            return Observation((0,0,0), 0, 0, 0, 0.0, False, 0, [], [], [], air=300.0, onGround=True, actionStatus="unknown")
-        
-        self.rob.observeProcCached() 
-        
-        # Position
-        pos = self.rob.getCachedObserve('getAgentPos') # [x, y, z, pitch, yaw]
-        if pos:
-            p = (pos[0], pos[1], pos[2])
-            y = pos[4]
-            pitch = pos[3]
-        else:
-             p = (0.0, 64.0, 0.0)
-             y = 0.0
-             pitch = 0.0
-
-        # Vital Stats
-        life = self.rob.getCachedObserve('getLife') or 20.0
-
-        food = self.mc.getFullStat('Food')
-        food = float(food) if food is not None else 20.0
-
-        air = self.rob.getCachedObserve('getAir')
-        air = float(air) if air is not None else 300.0
-
-        on_ground = self.rob.getCachedObserve('getOnGround')
-        if on_ground is None:
-            on_ground = True
-
-        action_status = self.mc.getActionStatus()
-        # print(f"Action Status: {action_status}")
-        if action_status is None:
-            action_status = "unknown"
-        
-        
-        worldTime = self.mc.getFullStat('WorldTime')
-        if worldTime is not None:
-            worldTime = int(worldTime)
-            # Day is roughly 0-12000, Night 12000-24000
-            timeMod = worldTime % 24000
-            is_day = timeMod < 12000
-        else:
-            worldTime = 6000
-            is_day = True
-            
-        # Entities
-        ents = self.rob.getCachedObserve('getNearEntities') or []
-        parsedEnts = []
-        for e in ents:
-            ex, ey, ez = e.get('x', 0), e.get('y', 0), e.get('z', 0)
-            dist = math.sqrt((ex-p[0])**2 + (ey-p[1])**2 + (ez-p[2])**2)
-            parsedEnts.append({
-                'type': e.get('name', 'unknown').lower(), 
-                'distance': dist,
-                'position': [ex, ey, ez]
-            })
-
-        rawInventory = self.rob.getCachedObserve('getInventory')
-        inv = []
-        if rawInventory:
-            if isinstance(rawInventory, list):
-                for item in rawInventory:
-                    inv.append({
-                        'item': item.get('type', 'unknown'),
-                        'count': item.get('quantity', 1)
-                    })
-                    
-        blocks = [] 
-        
-        line_of_sight = self.rob.getCachedObserve("getLineOfSights")
-        line_of_sight_type = None
-        line_of_sight_distance = None
-        line_of_sight_hit_type = None
-        if isinstance(line_of_sight, dict):
-            line_of_sight_type = line_of_sight.get("type")
-            line_of_sight_distance = line_of_sight.get("distance")
-            line_of_sight_hit_type = line_of_sight.get("hitType")
-
-        return Observation(
-            position=p,
-            yaw=y,
-            pitch=pitch,
-            health=life,
-            hunger=food,
-            isDay=is_day,
-            timeOfDay=worldTime, 
-            inventory=inv,
-            nearbyEntities=parsedEnts,
-            nearbyBlocks=blocks,
-            lineOfSight=line_of_sight,
-            air=air,
-            onGround=on_ground,
-            actionStatus=action_status,
-            lineOfSightType=line_of_sight_type,
-            lineOfSightDistance=line_of_sight_distance,
-            lineOfSightHitType=line_of_sight_hit_type
-        )
+        return observationOps.buildObservation(self)
 
     def executeAction(self, actionType: ActionType):
         if not self.connected:
             print("Not connected to Vereya environment.")
-            return
+            return []
 
-        if actionType == ActionType.MOVE_FORWARD:
-            self.rob.sendCommand('move 1')
-            time.sleep(5) 
-            self.rob.sendCommand('move 0')
-            return "Moved Forward"
-            
-        elif actionType == ActionType.TURN_LEFT:
-            self.rob.sendCommand('turn -0.5')
-            time.sleep(0.2) 
-            self.rob.sendCommand('turn 0')
-            return "Turned Left"
-            
-        elif actionType == ActionType.TURN_RIGHT:
-            self.rob.sendCommand('turn 0.5')
-            time.sleep(0.2)
-            self.rob.sendCommand('turn 0')
-            return "Turned Right"
-            
-        elif actionType == ActionType.EAT:
-            return self.eatFromInventory()
-            
-        elif actionType == ActionType.ATTACK:
-            self.rob.sendCommand('attack 1')
-            time.sleep(0.5)
-            self.rob.sendCommand('attack 0')
-            return "Attacked"
-            
-        elif actionType == ActionType.PLACE:
-            self.rob.sendCommand('use 1')
-            time.sleep(0.2)
-            self.rob.sendCommand('use 0')
-            return "Placed"
-
-        elif actionType == ActionType.USE:
-            self.rob.sendCommand('use 1')
-            time.sleep(10)
-            self.rob.sendCommand('use 0')
-            return "Used"
-            
-        elif actionType == ActionType.DIG:
-            self.rob.sendCommand('attack 1')
-            time.sleep(0.1)
-            self.rob.sendCommand('attack 0')
-            return "Dug"
-
-        elif actionType == ActionType.CHAT:
-            self.rob.sendCommand('chat Hello')
-            return "Chatted Hello"
-            
-        elif actionType == ActionType.CROUCH:
-            self.rob.sendCommand('crouch 1')
-            time.sleep(10)
-            self.rob.sendCommand('crouch 0')
-            return "Crouched"
-        
-        elif actionType == ActionType.JUMP:
-            self.rob.sendCommand('jump 1')
-            time.sleep(5)
-            self.rob.sendCommand('jump 0')
-            return "Jumped"
-             
-        elif actionType == ActionType.DROP:
-            self.rob.sendCommand('discardCurrentItem')
-            return "Dropped Item"
+        handler = self.actionHandlers.get(actionType)
+        if handler is not None:
+            return handler()
         
         print(f"Unknown action type: {actionType}")
-        return
+        return []
+
+    def doMoveForward(self):
+        return actionOps.doMoveForward(self)
+
+    def doTurnLeft(self):
+        return actionOps.doTurnLeft(self)
+
+    def doTurnRight(self):
+        return actionOps.doTurnRight(self)
+
+    def doAttack(self):
+        return actionOps.doAttack(self)
+
+    def doPlace(self):
+        return actionOps.doPlace(self)
+
+    def doUse(self):
+        return actionOps.doUse(self)
+
+    def doDig(self):
+        return actionOps.doDig(self)
+
+    def doChat(self):
+        return actionOps.doChat(self)
+
+    def doCrouch(self):
+        return actionOps.doCrouch(self)
+
+    def doJump(self):
+        return actionOps.doJump(self)
+
+    def doDrop(self):
+        return actionOps.doDrop(self)
+
+    def doBuildShelter(self):
+        return shelterOps.buildShelter(self)
+
+    def doSeekShelter(self):
+        return shelterOps.seekShelter(self)
+
+    def doEnterShelter(self):
+        return shelterOps.enterShelter(self)
 
     def moveTo(self, target_x, target_y, target_z):
         if not self.connected or not self.rob:
             print("Not connected to Vereya environment.")
-            return
+            return []
 
         self.rob.observeProcCached()
         initialPos = self.rob.getCachedObserve('getAgentPos')
@@ -308,7 +175,7 @@ class VereyaEnvironment:
         
         if not initialPos or not rawGrid:
             print("Failed to get initial position or grid data")
-            return
+            return []
 
         gridMap = Navigation.parseGrid(rawGrid, self.grid_bounds)
         goal_rel = (
@@ -326,7 +193,7 @@ class VereyaEnvironment:
         path = Navigation.aStar((0, 0, 0), goal_rel, gridMap)
         if not path:
             print("No path found to target!")
-            return
+            return []
 
         print(f"Executing path: {path}")
         
