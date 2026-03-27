@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional, Callable
 
 from type import ActionType, Observation
 from navigation import Navigation
+from network_utils import resolveClientIp
 import actions as actionOps
 import breathing as breathingOps
 import inventory as inventoryOps
@@ -26,6 +27,7 @@ class VereyaEnvironment:
         self.connected = False
         self.mc: Optional[MCConnector] = None
         self.rob: Optional[RobustObserver] = None
+        self.client_ip = resolveClientIp()
         
         self.grid_bounds = [[-30, 30], [-5, 5], [-30, 30]]
         self.obs = mb.Observations(bAll=True)
@@ -67,8 +69,7 @@ class VereyaEnvironment:
     def connect(self):
         print("Connecting to REAL Minecraft via Vereya ...")
         try:
-            # clientIp should be of the host machine running Minecraft, adjust based on that
-            self.mc = MCConnector(self.mission, clientIp='172.19.176.1') 
+            self.mc = MCConnector(self.mission, clientIp=self.client_ip)
             self.rob = RobustObserver(self.mc)
             self.mc.safeStart()
                 
