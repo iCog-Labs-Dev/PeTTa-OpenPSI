@@ -51,6 +51,39 @@ def getObservation() -> list:
         return observationToMetta(obs)
     return []
 
+
+def serverCommand(command: str):
+    if not currentEnv or not getattr(currentEnv, "mc", None):
+        return []
+    cmd = str(command or "").strip()
+    if not cmd:
+        return []
+    if cmd.startswith("/"):
+        cmd = cmd[1:]
+
+    low = cmd.lower()
+    m = re.match(r"^time\s+add\s+(-?\d+)\s*$", low)
+    if m:
+        delta = int(m.group(1))
+        prev = int(getattr(currentEnv, "timeAddOffset", 0))
+        setattr(currentEnv, "timeAddOffset", prev + delta)
+    
+    try:
+        currentEnv.mc.sendCommand(f"chat /{cmd}")
+        return f"/{cmd}"
+    except Exception as e:
+        print(f"Failed server command '/{cmd}': {e}")
+        return []
+
+
+def sleepSeconds(seconds: float = 0.3):
+    try:
+        delay = max(0.0, float(seconds))
+    except Exception:
+        delay = 0.3
+    time.sleep(delay)
+    return "ok"
+
 def executeAction(actionName: str, *args):
     print(f"Executing Action: {actionName} with args {args}")
     
@@ -85,6 +118,8 @@ def executeAction(actionName: str, *args):
             "build_shelter": ActionType.BUILD_SHELTER,
             "seek_shelter": ActionType.SEEK_SHELTER,
             "enter_shelter": ActionType.ENTER_SHELTER,
+            "find_ground": ActionType.FIND_GROUND,
+            "sleep_at_night": ActionType.SLEEP_AT_NIGHT,
         }
 
         if normalized in actionMap and actionMap[normalized] == ActionType.MOVE_TO:

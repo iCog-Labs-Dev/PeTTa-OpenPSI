@@ -69,10 +69,10 @@
                (or (== $type skeleton) 
                    (or (== $type spider) (== $type creeper))))
            True
-           False)))
-      (if $hostiles
-         True  
+           (empty))))
+      (if (== $hostiles ())
          False 
+         True  
       )
 ))
 
@@ -216,13 +216,15 @@
    )))
 
 
-(= (hasFoodAnimalNearby $space)
-   (let $animals (collapse 
+(= (hasFoodNearby $space)
+   (let $foodEntity (collapse 
       (match $space (nearEntity $type $dist $x $y $z)
-         (if (isFoodAnimal $type)
+         ;; currently we will only look for only edible foods only
+         ;; going after food animals needs complex logic to hunt and collect, which we will implement later
+         (if (isEdible $type)
             ($type $dist)
             (empty))))
-      (if (== $animals ())
+      (if (== $foodEntity ())
          False
          True)))
 
@@ -237,16 +239,16 @@
          ()
          (car-atom $animals))))
 
-(= (getNearestFoodAnimalPos $space)
-   (let $animals (collapse 
+(= (getNearestFoodPos $space)
+   (let $foodEntity (collapse 
       (match $space (nearEntity $type $dist $x $y $z)
-         (if (isFoodAnimal $type)
+         (if (isEdible $type)
             ($x $y $z $dist)
             (empty))))
-      (if (== $animals ())
+      (if (== $foodEntity ())
          ()
          (let* (
-            ($sorted (py-call (utils.sortEntities $animals)))
+            ($sorted (py-call (utils.sortEntities $foodEntity)))
             (($x $y $z $d) (car-atom $sorted))
          )
          ($x $y $z)

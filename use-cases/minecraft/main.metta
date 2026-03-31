@@ -4,6 +4,9 @@
 !(import! &self utils)
 !(import! &self ts-algorithm)
 
+!(import! &self "dashboard/comms.py")
+!(import! &self "dashboard/progress_dashboard.py")
+!(import! &self dashboard/events)
 
 !(bind! &kb (new-space))
 !(bind! &perceptionSpace (new-space))
@@ -34,8 +37,9 @@
       
       ($demands (queryAll &demandSpace demand))
       ; ($_ (println! (Demands: $demands)))
+      ($_ (pushEvent Demand $demands))
       
-      ($currDemand (getLeastSatisfiedDemandEpsilonGreedy &demandSpace 0.25))
+      ($currDemand (getLeastSatisfiedDemandEpsilonGreedy &demandSpace 0.1))
       ; ($_ (println! (Selected-Demand: $currDemand)))
       
       ((demand $demandName $minVal $maxVal $demandValue) $currDemand)
@@ -54,7 +58,7 @@
             (performAction $actions)
       ))
       ; ($_ (println! (Action Result: $result)))
-      ($x (
+      ($_ (
          if (== $result ())
             ()
             (updateRule $id $result &ruleSpace)
@@ -75,7 +79,9 @@
       ()
       (let* (
          ($_ (println! (Step $currentStep / $maxSteps)))
+         ($_ (applyIterationEnvironment $currentStep))
          ($_ (cognitiveStep))
+         ($_ (py-call (utils.sleepSeconds 0.35)))
       )
       (cognitiveLoop $maxSteps (+ $currentStep 1))
       )
@@ -85,7 +91,7 @@
 
 (= (runInteractive)
    (let $_ (println! (Minecraft OpenPsi Agent Starting ...))
-   (cognitiveLoop 1 1))
+   (cognitiveLoop 30 1))
 )
 
 

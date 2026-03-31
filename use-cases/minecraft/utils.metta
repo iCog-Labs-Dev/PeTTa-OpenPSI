@@ -1,3 +1,30 @@
+(= (operator) (eval (import operator)))
+
+(= (mod $val $mod)
+   (py-call (".mod" (operator) $val $mod)))
+
+(= (isModuloZero $step $n)
+   (== (mod $step $n) 0))
+
+(= (applyIterationEnvironment $step)
+   (let* (
+      ($timePulse (isModuloZero $step 2))
+      ($_ (if $timePulse
+               (py-call (utils.serverCommand "time add 1000"))
+               ()))
+               
+      ($hungerPulse (isModuloZero $step 10))
+      ($_ (if $hungerPulse
+               (py-call (utils.serverCommand "effect give @p minecraft:hunger 10 40 true"))
+               ()))
+               
+      ($nightThreatPulse (isModuloZero $step 7))
+      ($_ (if (and $nightThreatPulse (isNightNow))
+               (py-call (utils.serverCommand "summon zombie ~15 ~ ~15"))
+               ()))
+   )
+   ()
+))
 
 (= (getRules) (collapse (get-atoms &ruleSpace)))
 
@@ -15,7 +42,7 @@
 )
 
 
-(= (hungerThreshold) 15)
+(= (hungerThreshold) 10)
 
 (= (lowHealthThreshold) 10)
 
@@ -58,8 +85,8 @@
 (= (hasEdibleFoodNow)
    (eval (hasEdibleFood &perceptionSpace)))
 
-(= (hasFoodAnimalNearbyNow)
-   (eval (hasFoodAnimalNearby &perceptionSpace)))
+(= (hasFoodNearbyNow)
+   (eval (hasFoodNearby &perceptionSpace)))
 
 (= (isCuriosityHighNow)
    (let* (
@@ -88,6 +115,11 @@
 (= (isLowAirNow)
    (< (airNow) (lowAirThreshold)))
 
+(= (onGroundNow)
+   (let $vals (collapse (match &perceptionSpace (onGround $g) $g))
+      (if (== $vals ())
+         True
+         (car-atom $vals))))
 
 (= (contextAtomName $ctxAtom)
    (case $ctxAtom (
@@ -108,8 +140,8 @@
       (noHostilesNearby (not (hasHostileNearbyNow)))
       (hasEdibleFoodInInventory (hasEdibleFoodNow))
       (noEdibleFoodInInventory (not (hasEdibleFoodNow)))
-      (foodAnimalNearby (hasFoodAnimalNearbyNow))
-      (noFoodAnimalNearby (not (hasFoodAnimalNearbyNow)))
+      (foodNearby (hasFoodNearbyNow))
+      (noFoodNearby (not (hasFoodNearbyNow)))
       (curiosityHigh (isCuriosityHighNow))
       (hasShelterKnown (hasShelterKnownNow))
       (noShelterKnown (noShelterKnownNow))
@@ -213,6 +245,7 @@
       1
       (let* (
          (($head $tail) (decons-atom $actions))
+         ($_ (eval (pushEvent Action ($head))))
          ($result (performSingleAction $head))
          ($_ (println! ("Performed action: " $head " Result: " $result)))
          ($_ (updatePerception &perceptionSpace))
@@ -229,7 +262,7 @@
    
     ((moveToFood) (
       let* (
-        ($pos (eval (getNearestFoodAnimalPos &perceptionSpace)))
+        ($pos (eval (getNearestFoodPos &perceptionSpace)))
         ($_ (println! ("Moving to food at position:" $pos)))
         )
       (if (== $pos ())
@@ -244,16 +277,18 @@
     ((mineResource) (py-call (utils.executeAction dig)))
     ((walkForward) (py-call (utils.executeAction move_forward)))
     ((surfaceForAir) (surfaceForAirLoop 3))
+    ((findGround) (py-call (utils.executeAction find_ground)))
     ((recoverMobility) (let* (
         ($_ (py-call (utils.executeAction turn_left)))
         ($res (moveToRandomOffset 1 5))
     ) $res))
     ((seekShelter) (py-call (utils.executeAction seek_shelter)))
     ((enterShelter) (py-call (utils.executeAction enter_shelter)))
+    ((sleepAtNight) (py-call (utils.executeAction sleep_at_night)))
     ((eat) (py-call (utils.executeAction eat)))
     ((dig) (py-call (utils.executeAction dig)))
     ((buildShelter) (py-call (utils.executeAction build_shelter)))
-    ((checkBreathing) (if (isLowAirNow) (Low Air) (Air Stable)))
+    ((checkBreathing) (if (and (not (isLowAirNow)) (onGroundNow)) (Air Stable) (Breathing Recovery)))
     ((searchForFood) (moveToRandomOffset -10 12))
 
     ((wander) (moveToRandomOffset -20 20))
@@ -289,7 +324,7 @@
     ((scanEnvironment) (performSingleAction (lookAround)))
 
     ((lookAround) (let* (
-        ($leftRes (py-call (utils.executeAction turn_left)))
+      ;   ($leftRes (py-call (utils.executeAction turn_left)))
         ($rightRes (py-call (utils.executeAction turn_right)))
         ($_ (println! "Looked around"))
     ) (LookedAround)))
