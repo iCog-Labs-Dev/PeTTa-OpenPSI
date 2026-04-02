@@ -1,5 +1,6 @@
 import time
 import sys
+from network_utils import resolveClientIp
 
 try:
     import tagilmo.utils.mission_builder as mb
@@ -11,7 +12,6 @@ except ImportError:
     sys.exit(1)
 
 def main():
-    print("Configuring Mission XML")
     obs = mb.Observations()
     agentHandlers = mb.AgentHandlers(observations=obs)
     
@@ -30,8 +30,8 @@ def main():
 
     print("Connecting to Minecraft")
 
-    # ip address should be of the host machine running Minecraft, adjust based on that
-    mc = MCConnector(miss, clientIp="172.19.176.1") 
+    client_ip = resolveClientIp()
+    mc = MCConnector(miss, clientIp=client_ip) 
     rob = RobustObserver(mc)
 
 
@@ -61,9 +61,6 @@ def main():
         rob.sendCommand('jump 1')
         time.sleep(1)
         rob.sendCommand('jump 0')
-
-        print("\nReading Observations")
-        print("Latest data:", rob.mc.observe.get(rob.agentId))
 
     except KeyboardInterrupt:
         print("Stopping ...")
