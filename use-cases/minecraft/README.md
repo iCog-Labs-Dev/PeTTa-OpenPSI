@@ -9,18 +9,44 @@ This use-case connects OpenPsi's cognitive architecture to Minecraft via Vereya,
 
 ## Requirements
 
+- **Windows users should run the Python / MeTTa side from WSL** while Minecraft itself runs on Windows.
+- **Linux users** can run everything natively.
 - **Minecraft Java Edition** (Version 1.21).
 - **Fabric Loader** (Version 1.21).
-- **Python 3**.
-
-- **Vereya requires fabric loader and fabric api to installed. Please see instructions**
-
-    - https://fabricmc.net/use/installer/
-    - https://www.curseforge.com/minecraft/mc-mods/fabric-api
+- **Python** 3.10+ installed on your system.
+- **PeTTa runtime** available in your environment.
+- **Vereya requires Fabric Loader and Fabric API**:
+  - https://fabricmc.net/use/installer/
+  - https://www.curseforge.com/minecraft/mc-mods/fabric-api
 
 ---
 
-## 1. Install Minecraft Mod
+## 1. Create a Virtual Environment
+
+Run the setup commands in Linux. If you are on Windows, open your WSL terminal first.
+
+```bash
+cd /path/to/PeTTa-OpenPSI
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+```
+
+## 2. Install Python Requirements
+
+Install the project requirements plus the Minecraft-specific packages:
+
+```bash
+pip install git+https://github.com/trueagi-io/minecraft-demo.git
+pip install numpy
+pip install dearpygui
+```
+
+Notes:
+- `dearpygui` is required for the dashboard UI.
+- `minecraft-demo` provides the `tagilmo` / Vereya Python integration used by this use-case.
+
+## 3. Install the Minecraft Mods
 
 1. Install **Fabric Loader 1.21**.
 2. Go to your Minecraft `mods` folder.
@@ -28,32 +54,66 @@ This use-case connects OpenPsi's cognitive architecture to Minecraft via Vereya,
    - `fabric-api-[version]+1.21.jar`
    - `vereya-fabric-[version].jar`
 
-## 2. Install Python Library
+## 4. Configure IP Address
 
-Open your Linux (WSL) terminal and run:
+For native Linux, keep the default connection behavior.
 
-```bash
-pip install git+https://github.com/trueagi-io/minecraft-demo.git
-```
+If you are using Windows, run the agent inside WSL. In that setup, `127.0.0.1` will not reach Minecraft because WSL is network-isolated from the Windows host. The agent must use the Windows host IP instead.
 
-## 3. Configure IP Address
-
-In Linux terminal, find your IP:
+### WSL only: find the Windows host IP
 
 ```bash
 ip route show default | awk '{print $3}'
 ```
 
-(Copy this IP. Example: 172.19.176.1)
+(Example output: `172.19.176.1`)
 
-1. Find `clientIp='...'`. Change it to your IP.
+Then set the override before starting the agent:
 
-## How to Run
+```bash
+export OPENPSI_MINECRAFT_CLIENT_IP=$(ip route show default | awk '{print $3}')
+```
 
-1. Start Minecraft game with Fabric Loader on your PC.
-2. In your Linux (WSL) terminal, run the script you want, e.g.:
+The code keeps the default connection for native Linux, auto-detects the Windows host IP under WSL, and lets you override it with `OPENPSI_MINECRAFT_CLIENT_IP` when needed.
 
-    ```bash
-    python3 use-cases/minecraft/vereya-api-test.py
-    ```
-3. The agent will connect to Minecraft and start acting.
+## 5. Start the Dashboard
+
+Run the dashboard in a separate terminal with the same virtual environment activated:
+
+```bash
+python3 use-cases/minecraft/dashboard/progress_dashboard.py
+```
+
+By default, the dashboard listens on `127.0.0.1:5001`.
+
+Optional override:
+
+```bash
+export OPENPSI_DASHBOARD_HOST=127.0.0.1
+export OPENPSI_DASHBOARD_PORT=5001
+python use-cases/minecraft/dashboard/progress_dashboard.py
+```
+
+## 6. Start Minecraft
+
+1. Launch **Minecraft Java Edition** on the host machine.
+2. Use the **Fabric Loader 1.21** profile.
+3. Make sure the `fabric-api` and `vereya-fabric` jars are present in the `mods` folder.
+
+## 7. Run the Agent
+
+For a quick connection test:
+
+```bash
+source .venv/bin/activate
+python use-cases/minecraft/vereya-api-test.py
+```
+
+To run the full OpenPsi Minecraft agent:
+
+```bash
+source .venv/bin/activate
+metta use-cases/minecraft/main.metta
+```
+
+The dashboard should begin showing demand and action updates while the agent is running.
