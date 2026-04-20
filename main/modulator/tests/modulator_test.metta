@@ -2,11 +2,15 @@
 ;!(import! &self ../../../psi-utilities/psi_uitls)
 
 !(bind! &test-space (new-space))
+!(bind! &registry-space (new-space))
 !(insert-modulators &test-space)
+!(initialize-modulators &registry-space)
 
 !(test(normalize-value 6.0) 0.8571428571428571)
 !(test(normalize-value 9.0) (ERROR (provide unique values)))
 !(test (fetch-modulator &test-space securing-threshold) (modulator securing-threshold 0.5))
+!(test (fetch-modulator &registry-space securing-threshold) (modulator securing-threshold 0.5))
+!(test (get-modulator-config arousal) (modulator-config arousal 0.5 activation-updater (competence energy)))
 !(fetch-modulator &test-space securing-threshold)
 !(fetch-modulator-val &test-space securing-threshold)
 !(test (fetch-modulator-val &test-space securing-threshold) 0.5)

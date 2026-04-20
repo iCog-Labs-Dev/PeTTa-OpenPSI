@@ -1,19 +1,62 @@
- 
+!(import! &self ../psi-config)
+
 (: Modulator Type)
+(: ModulatorConfig Type)
 (: modulator (-> Symbol Number Modulator))
 
-;(: insert-modulators (-> Atom empty))
+; Legacy entry point kept for compatibility.
 (= (insert-modulators $space)
-   (let* (($_ (add-atom $space (modulator arousal 0.5)))
-          ($_ (add-atom $space (modulator positive-valence 0.5)))
-          ($_ (add-atom $space (modulator selection-threshold 0.5)))
-          ($_ (add-atom $space (modulator securing-threshold 0.5)))
-          ($_ (add-atom $space (modulator goal-directedness 0.5)))
-          ($_ (add-atom $space (modulator resolution-level 0.5)))
-         )
-         ()
+   (initialize-modulators $space)
+)
+
+(= (initialize-modulators $space)
+   (initialize-modulators-from-registry $space (modulator-registry))
+)
+
+(= (initialize-modulators-from-registry $space ())
+   ()
+)
+
+(= (initialize-modulators-from-registry $space $registry)
+   (let* ((($cfg $rest) (decons-atom $registry))
+          ((modulator-config $name $default-value $updater $dependencies) $cfg)
+          ($_ (add-atom $space (modulator $name $default-value))))
+      (initialize-modulators-from-registry $space $rest)
    )
- )
+)
+
+(= (list-modulators)
+   (list-modulators-from-registry (modulator-registry))
+)
+
+(= (list-modulators-from-registry ())
+   ()
+)
+
+(= (list-modulators-from-registry $registry)
+   (let ((($cfg $rest) (decons-atom $registry))
+         ((modulator-config $name $default-value $updater $dependencies) $cfg))
+      (cons-atom $name (list-modulators-from-registry $rest))
+   )
+)
+
+(= (get-modulator-config $name)
+   (get-modulator-config-from-registry $name (modulator-registry))
+)
+
+(= (get-modulator-config-from-registry $name ())
+   (Error (modulator-not-in-registry $name) NotFound)
+)
+
+(= (get-modulator-config-from-registry $name $registry)
+   (let ((($cfg $rest) (decons-atom $registry))
+         ((modulator-config $cfg-name $default-value $updater $dependencies) $cfg))
+      (if (== $name $cfg-name)
+         $cfg
+         (get-modulator-config-from-registry $name $rest)
+      )
+   )
+)
 ;(: fetch-modulator (-> hyperon::space::DynSpace Symbol Expression))
 (= (fetch-modulator $space $name)
      (match $space (modulator $name $x) (modulator $name $x))

@@ -1,5 +1,8 @@
+
+
 (: Demand Type)
 (: SkipDemand Type)
+(: DemandConfig Type)
 ; (: demand (-> Symbol Number Demand))
 (: skip (-> Symbol SkipDemand))
 
@@ -11,13 +14,68 @@
 
 (= (addDemand $space $name $value)
     (let* (
-            ($demand (demand $name $value))
-            ; ($duplicateDemandList  (match $space (demand $name $v) (demand $name $v)))
+            ((demand-config $cfg-name $min $max $initial-value $updater) (get-demand-config $name))
+            ($demand (demand $name $min $max $value))
             ($_ (add-atom $space $demand))
         )
      ()
     )
+)
+
+(= (initialize-demands $space)
+    (let $demands (eval (demand-registry))
+            (initialize-demands-from-registry $space $demands))
+)
+
+(= (initialize-demands-from-registry $space ())
+    ()
+)
+
+(= (initialize-demands-from-registry $space $registry)
+    (let* (
+            (($cfg $rest) (decons-atom $registry))
+            ($_ (println! (c $cfg)))
+            ((demand-config $name $min $max $initial-value $updater) $cfg)
+            ($_ (add-atom $space (demand $name $min $max $initial-value)))
+        )
+        (initialize-demands-from-registry $space $rest)
     )
+)
+
+(= (list-demands)
+    (list-demands-from-registry (eval (demand-registry)))
+)
+
+(= (list-demands-from-registry ())
+    ()
+)
+
+(= (list-demands-from-registry $registry)
+    (let* (
+        (($cfg $rest) (decons-atom $registry))
+          ((demand-config $name $min $max $initial-value $updater) $cfg)
+        )
+        (cons-atom $name (list-demands-from-registry $rest))
+    )
+)
+
+(= (get-demand-config $name)
+    (get-demand-config-from-registry $name (eval (demand-registry)))
+)
+
+(= (get-demand-config-from-registry $name ())
+    (Error (demand-not-in-registry $name) NotFound)
+)
+
+(= (get-demand-config-from-registry $name $registry)
+    (let* ((($cfg $rest) (decons-atom $registry))
+          ((demand-config $cfg-name $min $max $initial-value $updater) $cfg))
+        (if (== $name $cfg-name)
+            $cfg
+            (get-demand-config-from-registry $name $rest)
+        )
+    )
+)
 
 (= (fetchDemand $space $name) (
     match $space (demand $name $min $max $val) (demand $name $min $max $val)
@@ -67,9 +125,9 @@
 
 (= (setDemandValue $space $demandName $newValue)
     (let* (
-        ((demand $demandName $oldValue ) (match $space (demand $demandName $oldValue) (demand $demandName $oldValue)))
-        ($_ (remove-atom $space (demand $demandName $oldValue)))
-        ($_ (add-atom $space (demand $demandName $newValue)))
+        ((demand $demandName $min $max $oldValue) (fetchDemand $space $demandName))
+        ($_ (remove-atom $space (demand $demandName $min $max $oldValue)))
+        ($_ (add-atom $space (demand $demandName $min $max $newValue)))
     )
     ()
     )
@@ -101,7 +159,7 @@
         ($skippedDemands (collapse (let $demandName (superpose $skippedDemandNames) (fetchDemand $space $demandName))))
     )
     (if (== (size-atom $skippedDemands) 0)
-        (There are no skipped demands) 
+        ("There are no skipped demands") 
         (demandDecay $space (superpose $skippedDemands) $decayValue)
     ))
 )
@@ -165,7 +223,8 @@
             (fetchLeastSatisfiedDemand' $space $restDemands $leastSatisfiedDemand)
         )
     )
-))
+)
+)
 
 ;; Function to fetch the least satisfied demand
 (= (fetchLeastSatisfiedDemand $space) (
@@ -176,4 +235,19 @@
         ("No active demands found")
         (fetchLeastSatisfiedDemand' $space $activeDemands $leastSatisfiedDemand)
     )
-))
+    )
+)
+
+
+
+(= (fetch-demand $space $name)
+    (fetchDemand $space $name)
+)
+
+(= (fetch-demand-val $space $name)
+    (fetchDemandVal $space $name)
+)
+
+(= (updateDemandValue $space $name $newValue)
+    (setDemandValue $space $name $newValue)
+)
