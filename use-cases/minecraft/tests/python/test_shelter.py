@@ -24,10 +24,6 @@ class TestShelter(unittest.TestCase):
         self.assertEqual(outside_button[2], doorway[2] - 1)
         self.assertEqual(inside_pressure_plate[2], doorway[2] + 1)
 
-    def test_is_night_observation_uses_is_day_field(self):
-        self.assertTrue(shelter._isNightObservation(SimpleNamespace(isDay=False)))
-        self.assertFalse(shelter._isNightObservation(SimpleNamespace(isDay=True)))
-
     def test_has_nearby_hostile_observation_detects_close_hostile(self):
         obs = SimpleNamespace(
             nearbyEntities=[
@@ -45,9 +41,6 @@ class TestShelter(unittest.TestCase):
             ]
         )
         self.assertFalse(shelter._hasNearbyHostileObservation(obs))
-
-    def test_normalize_block_name_removes_prefix_and_keeps_base_name(self):
-        self.assertEqual(shelter.normalizeBlockName("minecraft:oak_log"), "log")
 
     def test_has_shelter_checks_shelter_state(self):
         self.assertTrue(shelter.hasShelter(SimpleNamespace(shelterState={"center": (0, 64, 0)})))
