@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 
-MINECRAFT_DIR = Path(__file__).resolve().parents[1]
+MINECRAFT_DIR = Path(__file__).resolve().parents[2]
 if str(MINECRAFT_DIR) not in sys.path:
     sys.path.insert(0, str(MINECRAFT_DIR))
 
